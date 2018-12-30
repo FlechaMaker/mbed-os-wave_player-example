@@ -1,7 +1,11 @@
 {
     "target_overrides": {
         "*": {
-            "platform.stdio-convert-newlines": true
+            "platform.stdio-baud-rate": 115200,
+            "platform.stdio-convert-newlines": true,
+            "target.components_add": [
+                "SD"
+            ]
         }
     }
 }

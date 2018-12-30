@@ -14,25 +14,40 @@
  * limitations under the License.
  */
 #include "mbed.h"
-#include <stdio.h>
 #include <errno.h>
+#include <stdio.h>
+#include <string>
 
-#include "BlockDevice.h"
+#include "SDBlockDevice.h"
 
 // File systems
-#include "LittleFileSystem.h"
 #include "FATFileSystem.h"
+#include "LittleFileSystem.h"
+
+#include "wave_player.h"
 
 
-BlockDevice *bd = BlockDevice::get_default_instance();
+SDBlockDevice sdbd(
+    PC_12,
+    PC_11,
+    PC_10,
+    PD_2,
+    25000000);
+
+BlockDevice* bd = (BlockDevice*)&sdbd;
 
 // File system declaration
-LittleFileSystem fs("fs");
+// LittleFileSystem fs("fs");
+FATFileSystem fs("fs");
+
+AnalogOut speaker(PA_4);
+wave_player wplayer(&speaker);
 
 
 // Set up the button to trigger an erase
 InterruptIn irq(BUTTON1);
-void erase() {
+void erase()
+{
     printf("Initializing the block device... ");
     fflush(stdout);
     int err = bd->init();
@@ -60,7 +75,8 @@ void erase() {
 
 
 // Entry point for the example
-int main() {
+int main()
+{
     printf("--- Mbed OS filesystem example ---\n");
 
     // Setup the erase event on button press, use the event queue
@@ -87,7 +103,7 @@ int main() {
     // Open the numbers file
     printf("Opening \"/fs/numbers.txt\"... ");
     fflush(stdout);
-    FILE *f = fopen("/fs/numbers.txt", "r+");
+    FILE* f = fopen("/fs/numbers.txt", "r+");
     printf("%s\n", (!f ? "Fail :(" : "OK"));
     if (!f) {
         // Create the numbers file if it doesn't exist
@@ -134,7 +150,7 @@ int main() {
 
         // Seek to beginning of number
         fseek(f, pos, SEEK_SET);
-    
+
         // Store number
         fprintf(f, "    %d\n", number);
 
@@ -151,11 +167,11 @@ int main() {
     if (err < 0) {
         error("error: %s (%d)\n", strerror(errno), -errno);
     }
-    
+
     // Display the root directory
     printf("Opening the root directory... ");
     fflush(stdout);
-    DIR *d = opendir("/fs/");
+    DIR* d = opendir("/fs/");
     printf("%s\n", (!d ? "Fail :(" : "OK"));
     if (!d) {
         error("error: %s (%d)\n", strerror(errno), -errno);
@@ -163,7 +179,7 @@ int main() {
 
     printf("root directory:\n");
     while (true) {
-        struct dirent *e = readdir(d);
+        struct dirent* e = readdir(d);
         if (!e) {
             break;
         }
@@ -202,6 +218,43 @@ int main() {
         error("error: %s (%d)\n", strerror(errno), -errno);
     }
 
+    d = opendir("/fs/");
+    while (true) {
+        struct dirent* e = readdir(d);
+        if (!e) {
+            break;
+        }
+
+        printf("    %s\n", e->d_name);
+        std::string sd_name(e->d_name);
+        std::string ext = sd_name.substr(sd_name.size() - 3, 3);
+        printf("ext: %s\n", ext.c_str());
+        if (sd_name.at(0) == '.' || ext.compare("wav")) {
+            continue;
+        }
+
+        printf("    %s\n", e->d_name);
+        // Display the numbers file
+        std::string file_path("/fs/");
+        file_path.append(e->d_name);
+        f = fopen(file_path.c_str(), "r");
+        printf("%s\n", (!f ? "Fail :(" : "OK"));
+        if (!f) {
+            error("error: %s (%d)\n", strerror(errno), -errno);
+        }
+
+        wplayer.set_verbosity(0);
+        wplayer.play(f);
+
+        err = fclose(f);
+        printf("%s\n", (err < 0 ? "Fail :(" : "OK"));
+        if (err < 0) {
+            error("error: %s (%d)\n", strerror(errno), -errno);
+        }
+    }
+    err = closedir(d);
+
+
     // Tidy up
     printf("Unmounting... ");
     fflush(stdout);
@@ -210,7 +263,6 @@ int main() {
     if (err < 0) {
         error("error: %s (%d)\n", strerror(-err), err);
     }
-        
+
     printf("Mbed OS filesystem example done!\n");
 }
-
