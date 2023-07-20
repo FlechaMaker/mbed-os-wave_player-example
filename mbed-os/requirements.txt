@@ -14,7 +14,7 @@ beautifulsoup4>=4,<=4.6.3
 fuzzywuzzy>=0.11,<=0.17
 pyelftools>=0.24,<=0.25
 jsonschema==2.6.0
-future==0.16.0
+future==0.18.3
 six==1.11.0
 git+https://github.com/armmbed/manifest-tool.git@v1.4.6
 mbed-cloud-sdk==2.0.1
